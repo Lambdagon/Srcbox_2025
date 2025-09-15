@@ -45,7 +45,7 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-#define AARG 1
+ConVar physcannon_rotate("physcannon_rotate", "1");
 
 static int g_physgunBeam1;
 static int g_physgunBeam;
@@ -55,6 +55,9 @@ static int g_physgunGlow;
 #define PHYSGUN_BEAM_GLOW		"sprites/physglow.vmt"
 
 #define	PHYSGUN_SKIN	1
+
+#define gmod_physgun_lock true // Lock the model as per Gmod
+#define physgun_audio false // Audio from the beta
 
 class CWeaponGravityGun;
 
@@ -160,13 +163,13 @@ public:
 	QAngle			m_targetRotation;
 	float			m_timeToArrive;
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// set up the modified pickup angles... allow the player to rotate the object in their grip
 	QAngle		m_vecRotatedCarryAngles;
 	bool			m_bHasRotatedCarryAngles;
 	// end adnan
-#endif
+//#endif
 
 	IPhysicsMotionController *m_controller;
 
@@ -188,13 +191,13 @@ BEGIN_SIMPLE_DATADESC( CGravControllerPoint )
 	DEFINE_FIELD( m_attachedPhysicsBone,		FIELD_SHORT ),
 	DEFINE_FIELD( m_targetRotation,		FIELD_VECTOR ),
 	DEFINE_FIELD( m_timeToArrive,			FIELD_FLOAT ),
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// set up the fields for our added vars
 	DEFINE_FIELD( m_vecRotatedCarryAngles, FIELD_VECTOR ),
 	DEFINE_FIELD( m_bHasRotatedCarryAngles, FIELD_BOOLEAN ),
 	// end adnan
-#endif
+//#endif
 
 	// Physptrs can't be saved in embedded classes... this is to silence classcheck
 	// DEFINE_PHYSPTR( m_controller ),
@@ -214,13 +217,13 @@ CGravControllerPoint::CGravControllerPoint( void )
 	m_attachedEntity = NULL;
 	m_attachedPhysicsBone = 0;
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// initialize our added vars
 	m_vecRotatedCarryAngles = vec3_angle;
 	m_bHasRotatedCarryAngles = false;
 	// end adnan
-#endif
+//#endif
 }
 
 CGravControllerPoint::~CGravControllerPoint( void )
@@ -266,12 +269,12 @@ void CGravControllerPoint::AttachEntity( CBasePlayer *pPlayer, CBaseEntity *pEnt
 	pPhys->GetPosition( &position, &angles );
 	SetTargetPosition( vGrabPosition, angles );
 	m_targetRotation = TransformAnglesToPlayerSpace( angles, pPlayer );
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// we need to grab the preferred/non preferred carry angles here for the rotatedcarryangles
 	m_vecRotatedCarryAngles = m_targetRotation;
 	// end adnan
-#endif
+//#endif
 }
 
 void CGravControllerPoint::DetachEntity( void )
@@ -425,16 +428,17 @@ public:
 	void OnRestore( void );
 	void Precache( void );
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// for overriding the mouse -> view angles (but still calc view angles)
 	bool OverrideViewAngles( void );
 	// end adnan
-#endif
+//#endif
 
 	virtual void	UpdateOnRemove(void);
 	void PrimaryAttack( void );
 	void SecondaryAttack( void );
+	void WeaponIdle(void);
 	void ItemPreFrame( void );
 	void ItemPostFrame( void );
 	virtual bool Holster( CBaseCombatWeapon *pSwitchingTo )
@@ -497,12 +501,13 @@ private:
 	CNetworkVector	( m_targetPosition );
 	CNetworkVector	( m_worldPosition );
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// this is how we tell if we're rotating what we're holding
+	CNetworkVar( bool, m_bIsCurrentlyHolding);
 	CNetworkVar( bool, m_bIsCurrentlyRotating );
 	// end adnan
-#endif
+//#endif
 
 	CSoundPatch					*m_sndMotor;		// Whirring sound for the gun
 	CSoundPatch					*m_sndLockedOn;
@@ -513,6 +518,7 @@ private:
 
 	bool		m_bInWeapon1;
 	bool		m_bInWeapon2;
+	bool		m_bBlockPrimary; // right click shit.
 
 	DECLARE_ACTTABLE();
 };
@@ -526,24 +532,26 @@ BEGIN_NETWORK_TABLE( CWeaponGravityGun, DT_WeaponGravityGun )
 	RecvPropVector( RECVINFO( m_targetPosition ) ),
 	RecvPropVector( RECVINFO( m_worldPosition ) ),
 	RecvPropInt( RECVINFO(m_active) ),
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// also receive if we're rotating what we're holding (by pressing use)
+	RecvPropBool( RECVINFO( m_bIsCurrentlyHolding ) ),
 	RecvPropBool( RECVINFO( m_bIsCurrentlyRotating ) ),
 	// end adnan
-#endif
+//#endif
 #else
 	SendPropEHandle( SENDINFO( m_hObject ) ),
 	SendPropInt( SENDINFO( m_physicsBone ) ),
 	SendPropVector(SENDINFO( m_targetPosition ), -1, SPROP_COORD),
 	SendPropVector(SENDINFO( m_worldPosition ), -1, SPROP_COORD),
 	SendPropInt( SENDINFO(m_active), 1, SPROP_UNSIGNED ),
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// need to seind if we're rotating what we're holding
+	SendPropBool( SENDINFO( m_bIsCurrentlyHolding ) ),
 	SendPropBool( SENDINFO( m_bIsCurrentlyRotating ) ),
 	// end adnan
-#endif
+//#endif
 #endif
 END_NETWORK_TABLE()
 
@@ -588,11 +596,11 @@ BEGIN_DATADESC( CWeaponGravityGun )
 	DEFINE_FIELD( m_movementLength,		FIELD_FLOAT ),
 	DEFINE_FIELD( m_soundState,			FIELD_INTEGER ),
 	DEFINE_FIELD( m_originalObjectPosition,	FIELD_POSITION_VECTOR ),
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	DEFINE_FIELD( m_bIsCurrentlyRotating, FIELD_BOOLEAN ),
 	// end adnan
-#endif
+//#endif
 	DEFINE_SOUNDPATCH( m_sndMotor ),
 	DEFINE_SOUNDPATCH( m_sndLockedOn ),
 	DEFINE_SOUNDPATCH( m_sndLightObject ),
@@ -642,7 +650,7 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		return false;
 	}
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// if we've been rotating it, set it to its proper new angles (change m_attachedAnglesPlayerSpace while modifier)
 	//Pickup_GetRotatedCarryAngles( pEntity, pPlayer, pPlayer->EntityToWorldTransform(), angles );
@@ -673,14 +681,14 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		MatrixToAngles( vNewRotation, m_targetRotation );
 	}
 	// end adnan
-#endif
+//#endif
 
 	SetTargetPosition( m_targetPosition, m_targetRotation );
 
 	return true;
 }
 
-#ifdef ARGG
+//#ifdef ARGG
 // adnan
 // this is where we say that we dont want ot apply the current calculated view angles
 //-----------------------------------------------------------------------------
@@ -700,7 +708,7 @@ bool CWeaponGravityGun::OverrideViewAngles( void )
 	return false;
 }
 // end adnan
-#endif
+//#endif
 
 //=========================================================
 //=========================================================
@@ -817,14 +825,15 @@ void CWeaponGravityGun::EffectUpdate( void )
 #ifndef CLIENT_DLL
 			pOwner->SetPhysicsFlag( PFLAG_DIROVERRIDE, true );
 #endif
-			if ( pOwner->m_nButtons & IN_FORWARD )
+			// Pointless code. Gmod doesn't do this. Leftover from the original physgun code valve had/
+			/*if (pOwner->m_nButtons & IN_FORWARD)
 			{
 				m_distance = Approach( 1024, m_distance, gpGlobals->frametime * 100 );
 			}
 			if ( pOwner->m_nButtons & IN_BACK )
 			{
 				m_distance = Approach( 40, m_distance, gpGlobals->frametime * 100 );
-			}
+			}*/
 		}
 
 		if ( pOwner->m_nButtons & IN_WEAPON1 )
@@ -940,6 +949,7 @@ static float UTIL_LineFraction( float value, float low, float high, float scale 
 
 void CWeaponGravityGun::SoundStart( void )
 {
+#ifdef physgun_audio == true
 	CPASAttenuationFilter filter( this );
 
 	switch( m_soundState )
@@ -963,11 +973,12 @@ void CWeaponGravityGun::SoundStart( void )
 		}
 		break;
 	}
-													//   volume, att, flags, pitch
+#endif											//   volume, att, flags, pitch
 }
 
 void CWeaponGravityGun::SoundUpdate( void )
 {
+#ifdef physgun_audio == true
 	int newState;
 	
 	if ( m_hObject )
@@ -1020,6 +1031,7 @@ void CWeaponGravityGun::SoundUpdate( void )
 		}
 		break;
 	}
+#endif
 }
 
 
@@ -1043,7 +1055,9 @@ void CWeaponGravityGun::EffectDestroy( void )
 	gHUD.m_bSkipClear = false;
 #endif
 	m_active = false;
+#if physgun_audio == true
 	SoundStop();
+#endif
 
 	DetachObject();
 }
@@ -1095,6 +1109,9 @@ void CWeaponGravityGun::AttachObject( CBaseEntity *pObject, IPhysicsObject *pPhy
 	m_useDown = false;
 	if ( pPhysics && pObject->GetMoveType() == MOVETYPE_VPHYSICS )
 	{
+		if (gmod_physgun_lock == true){
+			pPhysics->EnableMotion(true);
+		}
 		m_distance = distance;
 
 		Vector worldPosition;
@@ -1129,11 +1146,16 @@ void CWeaponGravityGun::AttachObject( CBaseEntity *pObject, IPhysicsObject *pPhy
 //=========================================================
 void CWeaponGravityGun::PrimaryAttack( void )
 {
+	if (m_bBlockPrimary) {
+		return;
+	}
 	if ( !m_active )
 	{
 		SendWeaponAnim( ACT_VM_PRIMARYATTACK );
 		EffectCreate();
+#if physgun_audio == true
 		SoundCreate();
+#endif
 	}
 	else
 	{
@@ -1144,7 +1166,30 @@ void CWeaponGravityGun::PrimaryAttack( void )
 
 void CWeaponGravityGun::SecondaryAttack( void )
 {
-	return;
+	if (gmod_physgun_lock == true) {
+		if (m_hObject) {
+			IPhysicsObject* phys = m_hObject->VPhysicsGetObject();
+			if (phys) {
+				phys->EnableMotion(false);
+				m_bBlockPrimary = true;
+			}
+		}
+		EffectDestroy();
+#if physgun_audio == true
+		SoundDestroy();
+#endif	
+		return;
+	}
+	else {
+		if (m_active)
+		{
+			EffectDestroy();
+		#if physgun_audio == true
+			SoundDestroy();
+		#endif	
+			return;
+		}
+	}
 }
 
 #ifdef CLIENT_DLL
@@ -1360,6 +1405,23 @@ void CWeaponGravityGun::ItemPreFrame()
 #endif
 }
 
+void CWeaponGravityGun::WeaponIdle(void)
+{
+	SendWeaponAnim(ACT_VM_IDLE);
+	if (m_active)
+	{
+		CBaseEntity* pObject = m_hObject;
+		//WeaponSound(SPECIAL1);
+		m_flNextPrimaryAttack = gpGlobals->curtime + 1;
+
+		EffectDestroy();
+		SoundDestroy();
+	}
+	else {
+		m_bBlockPrimary = false;
+	}
+}
+
 
 void CWeaponGravityGun::ItemPostFrame( void )
 {
@@ -1367,7 +1429,7 @@ void CWeaponGravityGun::ItemPostFrame( void )
 	if (!pOwner)
 		return;
 
-#ifdef ARGG
+//#ifdef ARGG
 	// adnan
 	// this is where we check if we're orbiting the object
 	
@@ -1378,13 +1440,14 @@ void CWeaponGravityGun::ItemPostFrame( void )
 	CBaseEntity *pObject = m_hObject;
 	if( pObject ) {
 
-		if((pOwner->m_nButtons & IN_ATTACK) && (pOwner->m_nButtons & IN_USE) ) {
+		if((pOwner->m_nButtons & IN_USE) ) {
 			m_gravCallback.m_bHasRotatedCarryAngles = true;
+			//pOwner->SetMaxSpeed(0);
 			
 			// did we JUST hit use?
 			//  if so, grab the current angles to begin with as the rotated angles
 			if( !(pOwner->m_afButtonLast & IN_USE) ) {
-				m_gravCallback.m_vecRotatedCarryAngles = pObject->GetAbsAngles();
+			m_gravCallback.m_vecRotatedCarryAngles = pObject->GetAbsAngles();
 			}
 
 			m_bIsCurrentlyRotating = true;
@@ -1399,16 +1462,18 @@ void CWeaponGravityGun::ItemPostFrame( void )
 		m_gravCallback.m_bHasRotatedCarryAngles = false;
 	}
 	// end adnan
-#endif
+//#endif
 
 	if ( pOwner->m_nButtons & IN_ATTACK )
 	{
-#if defined( ARGG )
-		if( (pOwner->m_nButtons & IN_USE) ) {
-			pOwner->m_vecUseAngles = pOwner->pl.v_angle;
+//#if defined( ARGG )
+		if( (pOwner->m_afButtonPressed & IN_USE) ) {
+			pOwner->SetMaxSpeed(0);
+			//FIXME! i need a new rotational hook!
+			//pOwner->m_vecUseAngles = pOwner->pl.v_angle;
 		}
-#endif
-		if ( pOwner->m_afButtonPressed & IN_ATTACK2 )
+//#endif
+		if ( pOwner->m_afButtonLast & IN_ATTACK2 )
 		{
 			SecondaryAttack();
 		}
