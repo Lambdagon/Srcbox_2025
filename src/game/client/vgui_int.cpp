@@ -23,7 +23,7 @@
 #include <KeyValues.h>
 #include "filesystem.h"
 #include "matsys_controls/matsyscontrols.h"
-//#include "MyPanel.h"
+#include "MyPanel.h"
 #include "MountGames.h"
 
 //IGameMountPanel* gamemountpanel;
@@ -204,9 +204,9 @@ void VGui_CreateGlobalPanels( void )
 	// Srcbox Panels
 	//VPANEL gameParent = enginevgui->GetPanel(PANEL_CLIENTDLL);
 	//VPANEL gameParent2 = enginevgui->GetPanel(PANEL_CLIENTDLL);
-	//VPANEL GameUiDll = enginevgui->GetPanel(PANEL_GAMEUIDLL);
+	VPANEL GameUiDll = enginevgui->GetPanel( PANEL_GAMEUIDLL);
 	// End
-	//mypanel->Create(GameUiDll);
+	mypanel->Create(GameUiDll);
 	//gamemountpanel->Create(GameUiDll);
 #if defined( TRACK_BLOCKING_IO )
 	VPANEL gameDLLPanel = enginevgui->GetPanel( PANEL_GAMEDLL );
@@ -262,7 +262,7 @@ void VGui_Shutdown()
 	// Make sure anything "marked for deletion"
 	//  actually gets deleted before this dll goes away
 	vgui::ivgui()->RunFrame();
-	//mypanel->Destroy();
+	mypanel->Destroy();
 	//gamemountpanel->Destroy();
 }
 

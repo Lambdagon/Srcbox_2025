@@ -608,6 +608,11 @@ $Project
 			$File	"$SRCDIR\game\shared\sixense\sixense_convars_extern.h"
 		}
 		
+		$Folder	"VGUI2 Panels"
+		{
+            $File "$SRCDIR\game\client\vgui2_panels\vgui_singeplayer.cpp"
+        }
+		
 		// Files not using precompiled header cbase.h
 
 		$File	"$SRCDIR\public\bone_setup.cpp"						\
