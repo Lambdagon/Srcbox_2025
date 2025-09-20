@@ -2,7 +2,7 @@
 
 **Open-sourced sandbox built using the lastest Source SDK 2013**
 
-A free mod ment to be an open-sourced version of garrys mod (10), with improvments
+A free mod ment to be an open-sourced version of garrys mod (10), with improvments.
 Supports newer games like L4D(2), Alien Swarm, and Portal 2. CS:GO not supported, Dota 2 (Source 1) never.
 
 ### Proudly powered by
