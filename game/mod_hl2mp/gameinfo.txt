@@ -71,11 +71,16 @@
 			game				|appid_243750|hl2/hl2_misc.vpk
 			
 			// We then begin to point towards other games pak files to mount them into the filesystem
+			// Why use these file paths???????? 
 			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/l4d"
 			//game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/hl2_beta"
 			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/pbr"
 			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/fortnite"
 			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/rp_littletown_d"
+			
+			// ACTUALLY MOUNT LEFT 4 DEAD 
+			game					|appid_500|left4dead/pak01.vpk
+			game					|appid_500|left4dead
 
 			platform			|appid_243750|platform/platform_misc.vpk
 
