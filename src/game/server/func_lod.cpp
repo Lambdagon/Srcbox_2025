@@ -31,7 +31,9 @@ public:
 	// (m_fNonintrusiveDist and m_fDisappearDist):	the bmodel is trying to appear or disappear nonintrusively
 	//												(waits until it's out of the view frustrum or until there's a lot of motion)
 	// (m_fDisappearDist+):							the bmodel is forced to be invisible
-	CNetworkVar( float, m_fDisappearDist );
+	CNetworkVar(float, m_fDisappearDist);
+	CNetworkVar(int, m_nDisappearMinDist);
+	CNetworkVar(int, m_nDisappearMaxDist);
 
 // CBaseEntity overrides.
 public:
@@ -45,6 +47,8 @@ public:
 
 IMPLEMENT_SERVERCLASS_ST(CFunc_LOD, DT_Func_LOD)
 	SendPropFloat(SENDINFO(m_fDisappearDist), 0, SPROP_NOSCALE),
+	SendPropInt(SENDINFO(m_nDisappearMinDist), 16, SPROP_UNSIGNED),
+	SendPropInt(SENDINFO(m_nDisappearMaxDist), 16, SPROP_UNSIGNED),
 END_SEND_TABLE()
 
 
@@ -56,7 +60,9 @@ LINK_ENTITY_TO_CLASS(func_lod, CFunc_LOD);
 //---------------------------------------------------------
 BEGIN_DATADESC( CFunc_LOD )
 
-	DEFINE_FIELD( m_fDisappearDist,	FIELD_FLOAT ),
+	DEFINE_FIELD(m_fDisappearDist, FIELD_FLOAT),
+	DEFINE_KEYFIELD(m_nDisappearMinDist, FIELD_INTEGER, "DisappearMinDist"),
+	DEFINE_KEYFIELD(m_nDisappearMaxDist, FIELD_INTEGER, "DisappearMaxDist"),
 
 END_DATADESC()
 
@@ -100,7 +106,8 @@ bool CFunc_LOD::KeyValue( const char *szKeyName, const char *szValue )
 {
 	if (FStrEq(szKeyName, "DisappearDist"))
 	{
-		m_fDisappearDist = (float)atof(szValue);
+		m_nDisappearMinDist = atoi(szValue);
+		m_nDisappearMaxDist = m_nDisappearMinDist + 800;
 	}
 	else if (FStrEq(szKeyName, "Solid"))
 	{

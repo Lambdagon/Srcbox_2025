@@ -19,26 +19,28 @@
 #include "c_basehlplayer.h"
 #endif // HL2_CLIENT_DLL
 
+static ConVar srcbox_flashlight_version("srcbox_flashlight_version", "0", FCVAR_REPLICATED | FCVAR_ARCHIVE, "Select which flashlight from a version of Source (or Goldsource) to use. 1 is Half-Life's (Goldsource), 2 is Half-Life 2: Episode 2, and 3 is Left 4 Dead (2). Default is 0");
+
 #if defined( _X360 )
 extern ConVar r_flashlightdepthres;
 #else
 extern ConVar r_flashlightdepthres;
 #endif
 
+#define m_MuzzleFlashTexture m_FlashlightTexture
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+bool bTracePlayers;
 
 extern ConVar r_flashlightdepthtexture;
 
 void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float flOldValue );
 
-static ConVar r_newflashlight( "r_newflashlight", "1", FCVAR_CHEAT, "", r_newflashlightCallback_f );
 static ConVar r_swingflashlight( "r_swingflashlight", "1", FCVAR_CHEAT );
 static ConVar r_flashlightlockposition( "r_flashlightlockposition", "0", FCVAR_CHEAT );
 static ConVar r_flashlightfov( "r_flashlightfov", "45.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsetx( "r_flashlightoffsetx", "10.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsety( "r_flashlightoffsety", "-20.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsetz( "r_flashlightoffsetz", "24.0", FCVAR_CHEAT );
 static ConVar r_flashlightnear( "r_flashlightnear", "4.0", FCVAR_CHEAT );
 static ConVar r_flashlightfar( "r_flashlightfar", "750.0", FCVAR_CHEAT );
 static ConVar r_flashlightconstant( "r_flashlightconstant", "0.0", FCVAR_CHEAT );
@@ -51,14 +53,13 @@ static ConVar r_flashlightladderdist( "r_flashlightladderdist", "40.0", FCVAR_CH
 static ConVar mat_slopescaledepthbias_shadowmap( "mat_slopescaledepthbias_shadowmap", "16", FCVAR_CHEAT );
 static ConVar mat_depthbias_shadowmap(	"mat_depthbias_shadowmap", "0.0005", FCVAR_CHEAT  );
 
+static ConVar r_flashlightnearoffsetscale("r_flashlightnearoffsetscale", "1.0", FCVAR_CHEAT);
+static ConVar r_flashlighttracedistcutoff("r_flashlighttracedistcutoff", "128");
+static ConVar r_flashlightbacktraceoffset("r_flashlightbacktraceoffset", "0.4", FCVAR_CHEAT);
 
-void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float flOldValue )
-{
-	if( engine->GetDXSupportLevel() < 70 )
-	{
-		r_newflashlight.SetValue( 0 );
-	}	
-}
+ConVar r_flashlightoffsetx("r_flashlightoffsetright", "5.0", FCVAR_CHEAT);
+ConVar r_flashlightoffsety("r_flashlightoffsetup", "-5.0", FCVAR_CHEAT);
+ConVar r_flashlightoffsetz("r_flashlightoffsetforward", "0.0", FCVAR_CHEAT);
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -68,23 +69,32 @@ void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float 
 //-----------------------------------------------------------------------------
 CFlashlightEffect::CFlashlightEffect(int nEntIndex)
 {
+	int flashlight_version = srcbox_flashlight_version.GetInt();
 	m_FlashlightHandle = CLIENTSHADOW_INVALID_HANDLE;
 	m_nEntIndex = nEntIndex;
 
 	m_bIsOn = false;
 	m_pPointLight = NULL;
-	if( engine->GetDXSupportLevel() < 70 )
+	switch (flashlight_version)
 	{
-		r_newflashlight.SetValue( 0 );
-	}	
-
-	if ( g_pMaterialSystemHardwareConfig->SupportsBorderColor() )
-	{
-		m_FlashlightTexture.Init( "effects/flashlight_border", TEXTURE_GROUP_OTHER, true );
-	}
-	else
-	{
-		m_FlashlightTexture.Init( "effects/flashlight001", TEXTURE_GROUP_OTHER, true );
+	case 1:
+		//HL1:S thru EP1 Flashlight
+		m_FlashlightTexture.Init("effects/flashlight001", TEXTURE_GROUP_OTHER, true);
+		break;
+	case 2:
+		//Half-Life 1 Gldsrc Flashlight
+		m_FlashlightTexture.Init("effects/flashlight001", TEXTURE_GROUP_OTHER, true);
+		break;
+	case 3:
+		//Left 4 Dead (2) Flashlight
+		m_FlashlightTexture.Init("effects/flashlight001_l4d", TEXTURE_GROUP_OTHER, true);
+		break;
+	//case 4:
+		// TODO: Episode 3's flashlight (joke)
+	default:
+		//Msg("Unknown flashlight version: %d\n. Defaulting to Half-Life 2...", flashlight_version);
+		m_FlashlightTexture.Init("effects/flashlight001", TEXTURE_GROUP_OTHER, true);
+		break;
 	}
 }
 
@@ -126,6 +136,16 @@ void CFlashlightEffect::TurnOff()
 class CTraceFilterSkipPlayerAndViewModel : public CTraceFilter
 {
 public:
+	CTraceFilterSkipPlayerAndViewModel(C_BasePlayer *pPlayer, bool bTracePlayers)
+	{
+		m_pPlayer = pPlayer;
+		m_bSkipPlayers = !bTracePlayers;
+
+		{
+			m_pLowerBody = NULL;
+		}
+	}
+
 	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask )
 	{
 		// Test against the vehicle too?
@@ -144,7 +164,18 @@ public:
 
 		return true;
 	}
+
+private:
+	C_BaseEntity *m_pPlayer;
+	C_BaseEntity *m_pLowerBody;
+	bool m_bSkipPlayers;
 };
+
+void C_BasePlayer::GetFlashlightOffset(const Vector& vecForward, const Vector& vecRight, const Vector& vecUp, Vector* pVecOffset) const
+{
+	*pVecOffset = r_flashlightoffsety.GetFloat() * vecUp + r_flashlightoffsetx.GetFloat() * vecRight + r_flashlightoffsetz.GetFloat() * vecForward;
+}
+
 
 //-----------------------------------------------------------------------------
 // Purpose: Do the headlight
@@ -155,14 +186,29 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 	FlashlightState_t state;
 
-	// We will lock some of the flashlight params if player is on a ladder, to prevent oscillations due to the trace-rays
-	bool bPlayerOnLadder = ( C_BasePlayer::GetLocalPlayer()->GetMoveType() == MOVETYPE_LADDER );
-
 	const float flEpsilon = 0.1f;			// Offset flashlight position along vecUp
-	const float flDistCutoff = 128.0f;
+	float flDistCutoff = r_flashlighttracedistcutoff.GetFloat(); // Swarm does it this way
 	const float flDistDrag = 0.2;
+	bool bDebugVis = r_flashlightvisualizetrace.GetBool();
 
-	CTraceFilterSkipPlayerAndViewModel traceFilter;
+	C_BasePlayer *pPlayer = UTIL_PlayerByIndex(m_nEntIndex);
+	if (!pPlayer)
+	{
+
+		pPlayer = C_BasePlayer::GetLocalPlayer();
+
+		if (!pPlayer)
+		{
+			Assert(false);
+			//return false;
+		}
+	}
+
+	// We will lock some of the flashlight params if player is on a ladder, to prevent oscillations due to the trace-rays
+	bool bPlayerOnLadder = (pPlayer->GetMoveType() == MOVETYPE_LADDER);
+
+	//CTraceFilterSkipPlayerAndViewModel traceFilter;
+	CTraceFilterSkipPlayerAndViewModel traceFilter(pPlayer, bTracePlayers);
 	float flOffsetY = r_flashlightoffsety.GetFloat();
 
 	if( r_swingflashlight.GetBool() )
@@ -176,22 +222,42 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 		}
 	}
 
+	Vector vecOffset;
+	pPlayer->GetFlashlightOffset(vecForward, vecRight, vecUp, &vecOffset);
 	Vector vOrigin = vecPos + flOffsetY * vecUp;
 
 	// Not on ladder...trace a hull
-	if ( !bPlayerOnLadder ) 
+	if (!bPlayerOnLadder)
 	{
-		trace_t pmOriginTrace;
-		UTIL_TraceHull( vecPos, vOrigin, Vector(-4, -4, -4), Vector(4, 4, 4), MASK_SOLID & ~(CONTENTS_HITBOX), &traceFilter, &pmOriginTrace );
+		Vector vecPlayerEyePos = pPlayer->GetRenderOrigin() + pPlayer->GetViewOffset();
 
-		if ( pmOriginTrace.DidHit() )
+		trace_t pmOriginTrace;
+		UTIL_TraceHull(vecPlayerEyePos, vOrigin, Vector(-2, -2, -2), Vector(2, 2, 2), (MASK_SOLID & ~(CONTENTS_HITBOX)) | CONTENTS_WINDOW | CONTENTS_GRATE, &traceFilter, &pmOriginTrace);//1
+
+		if (bDebugVis)
 		{
-			vOrigin = vecPos;
+			debugoverlay->AddBoxOverlay(pmOriginTrace.endpos, Vector(-2, -2, -2), Vector(2, 2, 2), QAngle(0, 0, 0), 0, 255, 0, 16, 0);
+			if (pmOriginTrace.DidHit() || pmOriginTrace.startsolid)
+			{
+				debugoverlay->AddLineOverlay(pmOriginTrace.startpos, pmOriginTrace.endpos, 255, 128, 128, true, 0);
+			}
+			else
+			{
+				debugoverlay->AddLineOverlay(pmOriginTrace.startpos, pmOriginTrace.endpos, 255, 0, 0, true, 0);
+			}
 		}
-	}
-	else // on ladder...skip the above hull trace
-	{
-		vOrigin = vecPos;
+
+		if (pmOriginTrace.DidHit() || pmOriginTrace.startsolid)
+		{
+			vOrigin = pmOriginTrace.endpos;
+		}
+		else
+		{
+			if (pPlayer->m_vecFlashlightOrigin != vecPlayerEyePos)
+			{
+				vOrigin = vecPos;
+			}
+		}
 	}
 
 	// Now do a trace along the flashlight direction to ensure there is nothing within range to pull back from
@@ -208,6 +274,8 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	VectorNormalize( vDir   );
 	VectorNormalize( vRight );
 	VectorNormalize( vUp    );
+
+	//m_hLaserSight = pEnt;
 
 	// Orthonormalize the basis, since the flashlight texture projection will require this later...
 	vUp -= DotProduct( vDir, vUp ) * vDir;
@@ -226,11 +294,8 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 	if ( r_flashlightvisualizetrace.GetBool() == true )
 	{
-		if ( debugoverlay )
-		{
-			debugoverlay->AddBoxOverlay( pmDirectionTrace.endpos, Vector( -4, -4, -4 ), Vector( 4, 4, 4 ), QAngle( 0, 0, 0 ), 0, 0, 255, 16, 0 );
-			debugoverlay->AddLineOverlay( vOrigin, pmDirectionTrace.endpos, 255, 0, 0, false, 0 );
-		}
+		debugoverlay->AddBoxOverlay( pmDirectionTrace.endpos, Vector( -4, -4, -4 ), Vector( 4, 4, 4 ), QAngle( 0, 0, 0 ), 0, 0, 255, 16, 0 );
+		debugoverlay->AddLineOverlay( vOrigin, pmDirectionTrace.endpos, 255, 0, 0, false, 0 );
 	}
 
 	float flDist = (pmDirectionTrace.endpos - vOrigin).Length();
@@ -268,53 +333,63 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 	bool bFlicker = false;
 
+//todo: make this work. may work now under mp...
+/*
 #ifdef HL2_EPISODIC
 	C_BaseHLPlayer *pPlayer = (C_BaseHLPlayer *)C_BasePlayer::GetLocalPlayer();
-	if ( pPlayer )
+	switch (flashlight_version)
 	{
-		float flBatteryPower = ( pPlayer->m_HL2Local.m_flFlashBattery >= 0.0f ) ? ( pPlayer->m_HL2Local.m_flFlashBattery ) : pPlayer->m_HL2Local.m_flSuitPower;
-		if ( flBatteryPower <= 10.0f )
+	case 3:
+		//C_BaseHLPlayer *pPlayer = (C_BaseHLPlayer *)C_BasePlayer::GetLocalPlayer();
+		if (pPlayer)
 		{
-			float flScale;
-			if ( flBatteryPower >= 0.0f )
-			{	
-				flScale = ( flBatteryPower <= 4.5f ) ? SimpleSplineRemapVal( flBatteryPower, 4.5f, 0.0f, 1.0f, 0.0f ) : 1.0f;
-			}
-			else
+			float flBatteryPower = (pPlayer->m_HL2Local.m_flFlashBattery >= 0.0f) ? (pPlayer->m_HL2Local.m_flFlashBattery) : pPlayer->m_HL2Local.m_flSuitPower;
+			if (flBatteryPower <= 10.0f)
 			{
-				flScale = SimpleSplineRemapVal( flBatteryPower, 10.0f, 4.8f, 1.0f, 0.0f );
-			}
-			
-			flScale = clamp( flScale, 0.0f, 1.0f );
-
-			if ( flScale < 0.35f )
-			{
-				float flFlicker = cosf( gpGlobals->curtime * 6.0f ) * sinf( gpGlobals->curtime * 15.0f );
-				
-				if ( flFlicker > 0.25f && flFlicker < 0.75f )
+				float flScale;
+				if (flBatteryPower >= 0.0f)
 				{
-					// On
-					state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale;
+					flScale = (flBatteryPower <= 4.5f) ? SimpleSplineRemapVal(flBatteryPower, 4.5f, 0.0f, 1.0f, 0.0f) : 1.0f;
 				}
 				else
 				{
-					// Off
-					state.m_fLinearAtten = 0.0f;
+					flScale = SimpleSplineRemapVal(flBatteryPower, 10.0f, 4.8f, 1.0f, 0.0f);
 				}
-			}
-			else
-			{
-				float flNoise = cosf( gpGlobals->curtime * 7.0f ) * sinf( gpGlobals->curtime * 25.0f );
-				state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale + 1.5f * flNoise;
-			}
 
-			state.m_fHorizontalFOVDegrees = r_flashlightfov.GetFloat() - ( 16.0f * (1.0f-flScale) );
-			state.m_fVerticalFOVDegrees = r_flashlightfov.GetFloat() - ( 16.0f * (1.0f-flScale) );
-			
-			bFlicker = true;
+				flScale = clamp(flScale, 0.0f, 1.0f);
+
+				if (flScale < 0.35f)
+				{
+					float flFlicker = cosf(gpGlobals->curtime * 6.0f) * sinf(gpGlobals->curtime * 15.0f);
+
+					if (flFlicker > 0.25f && flFlicker < 0.75f)
+					{
+						// On
+						state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale;
+					}
+					else
+					{
+						// Off
+						state.m_fLinearAtten = 0.0f;
+					}
+				}
+				else
+				{
+					float flNoise = cosf(gpGlobals->curtime * 7.0f) * sinf(gpGlobals->curtime * 25.0f);
+					state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale + 1.5f * flNoise;
+				}
+
+				state.m_fHorizontalFOVDegrees = r_flashlightfov.GetFloat() - (16.0f * (1.0f - flScale));
+				state.m_fVerticalFOVDegrees = r_flashlightfov.GetFloat() - (16.0f * (1.0f - flScale));
+
+				bFlicker = true;
+			}
 		}
+	default:
+		return;
 	}
 #endif // HL2_EPISODIC
+*/
 
 	if ( bFlicker == false )
 	{
@@ -389,10 +464,12 @@ void CFlashlightEffect::UpdateLightOld(const Vector &vecPos, const Vector &vecDi
 	
 	Vector end;
 	end = vecPos + nDistance * vecDir;
+	C_BasePlayer *pPlayer = UTIL_PlayerByIndex(m_nEntIndex);
 	
 	// Trace a line outward, skipping the player model and the view model.
 	trace_t pm;
-	CTraceFilterSkipPlayerAndViewModel traceFilter;
+	//CTraceFilterSkipPlayerAndViewModel traceFilter;
+	CTraceFilterSkipPlayerAndViewModel traceFilter(pPlayer, bTracePlayers);
 	UTIL_TraceLine( vecPos, end, MASK_ALL, &traceFilter, &pm );
 	VectorCopy( pm.endpos, m_pPointLight->origin );
 	
@@ -419,22 +496,59 @@ void CFlashlightEffect::UpdateLightOld(const Vector &vecPos, const Vector &vecDi
 	LightOffNew();
 }
 
+int CFlashlightEffect::LookupAttachment(const char* pAttachmentName)
+{
+	// skip over the special basecombatweapon lookup that always uses the world model instead of the current model
+	//return BaseClass::BaseClass::LookupAttachment(pAttachmentName);
+	return 0;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Do the headlight
 //-----------------------------------------------------------------------------
 void CFlashlightEffect::UpdateLight(const Vector &vecPos, const Vector &vecDir, const Vector &vecRight, const Vector &vecUp, int nDistance)
 {
+	int flashlight_version = srcbox_flashlight_version.GetInt();
+
+	C_BaseAnimating* pEnt = new C_BaseAnimating;
+	if (!pEnt)
+	{
+		Msg("Error, couldn't create new C_BaseAnimating\n");
+		return;
+	}
+	pEnt->SetLocalOrigin(Vector(0, 0, 0));
+	pEnt->SetLocalAngles(QAngle(0, 0, 0));
+	pEnt->SetSolid(SOLID_NONE);
+	pEnt->RemoveEFlags(EFL_USE_PARTITION_WHEN_NOT_SOLID);
+
+
 	if ( !m_bIsOn )
 	{
 		return;
 	}
-	if( r_newflashlight.GetBool() )
+
+	switch (flashlight_version)
 	{
-		UpdateLightNew( vecPos, vecDir, vecRight, vecUp );
-	}
-	else
-	{
-		UpdateLightOld( vecPos, vecDir, nDistance );
+	case 1:
+		// Half-Life: Source
+		UpdateLightOld(vecPos, vecDir, nDistance);
+		break;
+	case 2:
+		// Half-Life 2 and Episode 1
+		UpdateLightNew(vecPos, vecDir, vecRight, vecUp);
+		break;
+	case 3:
+		// Half-Life 2: Episode 2
+		UpdateLightNew(vecPos, vecDir, vecRight, vecUp);
+		break;
+	case 4:
+		//Left 4 Dead (2)
+		UpdateLightNew(vecPos, vecDir, vecRight, vecUp);
+		break;
+	default:
+		// Default directly to Half-Life 2 if invalid
+		UpdateLightNew(vecPos, vecDir, vecRight, vecUp);
+		break;
 	}
 }
 

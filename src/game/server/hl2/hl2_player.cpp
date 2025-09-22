@@ -64,6 +64,7 @@
 
 extern ConVar weapon_showproficiency;
 extern ConVar autoaim_max_dist;
+static ConVar srcbox_flashlight_version("srcbox_flashlight_version", "0", FCVAR_REPLICATED | FCVAR_ARCHIVE, "Select which flashlight from a version of Source (or Goldsource) to use. 1 is Half-Life's (Goldsource), 2 is Half-Life 2: Episode 2, and 3 is Left 4 Dead (2). Default is 0");
 
 // Do not touch with without seeing me, please! (sjb)
 // For consistency's sake, enemy gunfire is traced against a scaled down
@@ -434,8 +435,12 @@ void CHL2_Player::Precache( void )
 	PrecacheScriptSound( "HL2Player.SprintNoPower" );
 	PrecacheScriptSound( "HL2Player.SprintStart" );
 	PrecacheScriptSound( "HL2Player.UseDeny" );
+	PrecacheScriptSound( "HL1Player.FlashLightOn");
+	PrecacheScriptSound( "HL1Player.FlashLightOff");
 	PrecacheScriptSound( "HL2Player.FlashLightOn" );
 	PrecacheScriptSound( "HL2Player.FlashLightOff" );
+	PrecacheScriptSound( "Player.FlashlightOn");
+	PrecacheScriptSound( "Player.FlashlightOff");
 	PrecacheScriptSound( "HL2Player.PickupWeapon" );
 	PrecacheScriptSound( "HL2Player.TrainUse" );
 	PrecacheScriptSound( "HL2Player.Use" );
@@ -1180,6 +1185,8 @@ void CHL2_Player::Spawn(void)
 	// cvars unless they are set to be lower than this.
 	//
 	//m_flMaxspeed = 320;
+	Msg("Spawn Debug: movetype=%d, observer=%d, flags=%x\n",
+		GetMoveType(), m_iObserverMode, GetFlags());
 
 	if ( !IsSuitEquipped() )
 		 StartWalking();
@@ -2065,8 +2072,26 @@ void CHL2_Player::FlashlightTurnOn( void )
 		return;
 #endif
 
+	int flashlight_version = srcbox_flashlight_version.GetInt();
+
 	AddEffects( EF_DIMLIGHT );
-	EmitSound( "HL2Player.FlashLightOn" );
+	EmitSound("HL2Player.FlashLightOn");
+
+	switch (flashlight_version)
+	{
+	case 1:
+		EmitSound("HL1Player.FlashLightOn");
+		break;
+	case 2:
+		EmitSound("HL2Player.FlashLightOn");
+		break;
+	case 3:
+		EmitSound("Player.FlashlightOn");
+		break;
+	default:
+		EmitSound("HL2Player.FlashLightOn");
+		break;
+	}
 
 	variant_t flashlighton;
 	flashlighton.SetFloat( m_HL2Local.m_flSuitPower / 100.0f );
@@ -2084,8 +2109,26 @@ void CHL2_Player::FlashlightTurnOff( void )
 			return;
 	}
 
+	int flashlight_version = srcbox_flashlight_version.GetInt();
+
 	RemoveEffects( EF_DIMLIGHT );
-	EmitSound( "HL2Player.FlashLightOff" );
+	EmitSound("HL2Player.FlashLightOff");
+
+	switch (flashlight_version)
+	{
+	case 1:
+		EmitSound("HL1Player.FlashLightOff");
+		break;
+	case 2:
+		EmitSound("HL2Player.FlashLightOff");
+		break;
+	case 3:
+		EmitSound("Player.FlashlightOff");
+		break;
+	default:
+		EmitSound("HL2Player.FlashLightOff");
+		break;
+	}
 
 	variant_t flashlightoff;
 	flashlightoff.SetFloat( m_HL2Local.m_flSuitPower / 100.0f );
