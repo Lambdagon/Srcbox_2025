@@ -94,6 +94,8 @@ $Project
 
 	$Folder	"Source Files"
 	{
+		$File	"$SRCDIR\game\shared\content_mounter.h"
+		$File	"$SRCDIR\game\shared\content_mounter.cpp"
 		$File	"$SRCDIR\game\shared\achievement_saverestore.cpp"
 		$File	"$SRCDIR\game\shared\achievement_saverestore.h"
 		$File	"$SRCDIR\game\shared\achievementmgr.cpp"
@@ -294,6 +296,8 @@ $Project
 		$File	"cplane.cpp"
 		$File	"CRagdollMagnet.cpp"
 		$File	"CRagdollMagnet.h"
+		//$File	"cvisibilitymonitor.cpp"
+		//$File	"cvisibilitymonitor.h"
 		$File	"damagemodifier.cpp"
 		$File	"$SRCDIR\game\shared\death_pose.cpp"
 		$File	"$SRCDIR\game\shared\debugoverlay_shared.cpp"
@@ -437,6 +441,8 @@ $Project
 		$File	"info_camera_link.cpp"
 		$File	"info_camera_link.h"
 		$File	"info_overlay_accessor.cpp"
+		//$File	"info_game_event_proxy.cpp"
+		//$File	"info_game_event_proxy.h"
 		$File	"init_factory.h"
 		$File	"intermission.cpp"
 		$File	"$SRCDIR\public\interpolatortypes.h"

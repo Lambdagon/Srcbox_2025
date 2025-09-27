@@ -1,14 +1,24 @@
 "GameInfo"
 {
-	game	"Srcbox (Source SDK 2025)"
-	title	"" // we have a logo for that...
-	title2	""
+	game 		"Srcbox"
+	title 		"HALF-LIFE'"
+	title2		""
 	type multiplayer_only
 	nomodels 0
 	nohimodel 1
 	nocrosshair 1
-	supportsvr	1
-	gamelogo	1
+	extracontent 1
+	supportsvr	0
+	gamelogo	0
+	
+	// Game Mounting bools
+	// TODO: move this ingame like later gmod!
+	
+	l4dcontent 1
+	l4d2content 1
+	tf2content 1
+	//portalcontent 1
+	
 	hidden_maps
 	{
 		"test_speakers"		1
@@ -69,18 +79,6 @@
 			game				|appid_243750|hl2/hl2_sound_vo_english.vpk
 			game				|appid_243750|hl2/hl2_sound_misc.vpk
 			game				|appid_243750|hl2/hl2_misc.vpk
-			
-			// We then begin to point towards other games pak files to mount them into the filesystem
-			// Why use these file paths???????? 
-			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/l4d"
-			//game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/hl2_beta"
-			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/pbr"
-			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/fortnite"
-			game				"H:/SteamLibrary/steamapps/common/Source SDK Base 2013 Singleplayer/rp_littletown_d"
-			
-			// ACTUALLY MOUNT LEFT 4 DEAD 
-			game					|appid_500|left4dead/pak01.vpk
-			game					|appid_500|left4dead
 
 			platform			|appid_243750|platform/platform_misc.vpk
 

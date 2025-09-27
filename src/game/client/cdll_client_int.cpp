@@ -998,6 +998,7 @@ CHLClient::CHLClient()
 
 extern IGameSystem *ViewportClientSystem();
 
+#include "content_mounter.h"
 
 //-----------------------------------------------------------------------------
 ISourceVirtualReality *g_pSourceVR = NULL;
@@ -1134,6 +1135,8 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	ConVar_Register( FCVAR_CLIENTDLL );
 
 	g_pcv_ThreadMode = g_pCVar->FindVar( "host_thread_mode" );
+
+	MountExtraContent();
 
 	if (!Initializer::InitializeAllObjects())
 		return false;
@@ -1828,6 +1831,8 @@ void CHLClient::View_Fade( ScreenFade_t *pSF )
 		vieweffects->Fade( *pSF );
 }
 
+ConVar gamemode("sv_gamemode", "coop", FCVAR_REPLICATED | FCVAR_NOTIFY, "Gamemode");
+
 //-----------------------------------------------------------------------------
 // Purpose: Per level init
 //-----------------------------------------------------------------------------
@@ -1931,17 +1936,21 @@ void CHLClient::LevelInitPreEntity( char const* pMapName )
 	}
 #endif
 
+	ConVar* gm = cvar->FindVar("sv_gamemode");
+
 	// Discord RPC
 	if (!g_bTextMode)
 	{
 		DiscordRichPresence discordPresence;
 		memset(&discordPresence, 0, sizeof(discordPresence));
 
-		char buffer[256];
+		char state[256];
+		char details[256];
 		//discordPresence.state = "Coral Buddies!!!!";
-		sprintf(buffer, "Currently in map: %s", pMapName);
-		discordPresence.state = "SDKing...";
-		discordPresence.details = buffer;
+		sprintf(state, "Gamemode: %s", gm->GetString());
+		sprintf(details, "Currently in map: %s", pMapName);
+		discordPresence.state = state;
+		discordPresence.details = details;
 		discordPresence.startTimestamp = startTimestamp;
 		discordPresence.largeImageKey = "tf";
 		Discord_UpdatePresence(&discordPresence);

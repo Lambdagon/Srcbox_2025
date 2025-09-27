@@ -182,6 +182,8 @@ $Project
 		
 	$Folder	"Source Files"
 	{
+		$File	"$SRCDIR\game\shared\content_mounter.h"
+		$File	"$SRCDIR\game\shared\content_mounter.cpp"
 		$File	"hl2\C_Func_Monitor.cpp"
 		$File	"geiger.cpp"
 		$File	"history_resource.cpp"
@@ -259,6 +261,8 @@ $Project
 		$File	"c_gib.cpp"
 		$File	"c_hairball.cpp"
 		$File	"c_info_overlay_accessor.cpp"
+		//$File	"c_info_game_event_proxy.cpp"
+		//$File	"c_info_game_event_proxy.h"
 		$File	"c_lightglow.cpp"
 		$File	"C_MaterialModifyControl.cpp"
 		$File	"c_particle_system.cpp"
@@ -533,6 +537,7 @@ $Project
 		$Folder	"VGUI2 Panels"
 		{
             $File "$SRCDIR\game\client\vgui2_panels\vgui_singeplayer.cpp"
+            $File "$SRCDIR\game\client\vgui2_panels\vgui_newgame.cpp"
         }
 		
 		// Files not using precompiled header cbase.h
