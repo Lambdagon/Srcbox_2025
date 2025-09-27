@@ -36,12 +36,23 @@ It is important for sandbox enviroment, as later game maps use newer params not 
 
 **Notice! LUX Shaders IS NOT included at the current moment! It will be included with this project once its open-sourced**
 
-List of things used so far:
+<img width="266" height="104" alt="fortconnect" src="https://github.com/user-attachments/assets/363e9a2a-97e5-4793-b7b6-535e1d8847d2" />
 
-https://github.com/mapbase-source/source-sdk-2013 - Alien Swarm/L4D/2 func_precipitation port (effect.cpp and other necessary things) and the main menu. Precipitation is not ported at the current moment
+**Fortress Connected**
 
-Special thanks:
+Some code was kindly donated by Lambdagon (Vvis) to aid parts of the L4D parts of Srcbox, despite the mod not being out yet. Thank you guys!
+
+<img width="200" height="200" alt="50272682" src="https://github.com/user-attachments/assets/e185da46-5921-4772-a14d-aa03d3caa0c3" />
+
+**Mapbase**
+
+Alot of L4D stuff from Alien Swarm was ported over by these guys, and has been used as a reference for how to plug it into this mod.
+
+
+
+*Special thanks:*
 
 	TheMaster974 - Advice and video tutorials
 	Shiro - Shader advice
+	VDC - Fixs to specific things, so some stuff is akin to the newer branchs
 	And others who gave some valuable input
