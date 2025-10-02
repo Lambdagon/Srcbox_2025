@@ -210,6 +210,22 @@ DLL_IMPORT HANDLE STDCALL GetCurrentProcess(void);
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#ifdef SHADERCONSTHACK
+//-----------------------------------------------------------------------------
+// Purpose: Override Constant Register Amount. So that we can use more of them
+//-----------------------------------------------------------------------------
+void ApplyShaderConstantHack()
+{
+	CMaterialConfigWrapper Wrapper;
+
+	Wrapper.PrintPixelConstants();
+	Wrapper.SetNumPixelConstants(224); // 224 is the max according to microsoft documentation
+	Wrapper.SetNumBooleanPixelConstants(16); // 16 is the max according to microsoft documentation
+	Wrapper.SetNumIntegerPixelConstants(16); // 16 is the max according to microsoft documentation
+	Wrapper.PrintPixelConstants();
+}
+#endif
+
 extern IClientMode *GetClientModeNormal();
 
 // IF YOU ADD AN INTERFACE, EXTERN IT IN THE HEADER FILE.
@@ -307,22 +323,6 @@ void ProcessCacheUsedMaterials()
         materials->CacheUsedMaterials();
 	}
 }
-
-#ifdef SHADERCONSTHACK
-//-----------------------------------------------------------------------------
-// Purpose: Override Constant Register Amount. So that we can use more of them
-//-----------------------------------------------------------------------------
-void ApplyShaderConstantHack()
-{
-	CMaterialConfigWrapper Wrapper;
-
-	Wrapper.PrintPixelConstants();
-	Wrapper.SetNumPixelConstants(224); // 224 is the max according to microsoft documentation
-	Wrapper.SetNumBooleanPixelConstants(16); // 16 is the max according to microsoft documentation
-	Wrapper.SetNumIntegerPixelConstants(16); // 16 is the max according to microsoft documentation
-	Wrapper.PrintPixelConstants();
-}
-#endif
 
 // String tables
 INetworkStringTable *g_pStringTableParticleEffectNames = NULL;
